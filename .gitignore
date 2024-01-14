@@ -1,0 +1,30 @@
+.env
+
+# Node.js
+node_modules/
+
+# Dependency directories
+jspm_packages/
+typings/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/
+.vscode-test/
+
+# JetBrains
+.idea/
+
+# Sublime Text
+.sublime-project
+.sublime-workspace
+
+# Platform-specific files
+Thumbs.db
+.DS_Store
