@@ -8,6 +8,7 @@ const mongo_url = process.env.MONGO_URL
 const jwt_secret = process.env.JWT_SECRET
 const mongoose = require('mongoose');
 const User = require('./models/User.js');
+const Place = require('./models/Place.js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken')
 const download = require('image-downloader');
@@ -34,11 +35,43 @@ app.get('/test', (req, res) => {
 app.get('/profile', (req, res) => {
     const { token } = req.cookies
     if (token) {
-        // jwt.verify(token, )
+        jwt.verify(token,)
     } else {
         res.json(null)
     }
 })
+
+app.post('/persist-token', async (req, res) => {
+    try {
+        const { token } = req.body;
+
+        if (!token) {
+            return res.status(400).json({
+                EC: -1,
+                EM: 'Token not provided',
+                DT: ''
+            });
+        }
+
+        // Assuming you have a valid cookie name, you should replace 'yourCookieName' with the actual cookie name.
+        res.cookie('token', token, { httpOnly: true, secure: true });
+
+        return res.status(200).json({
+            EC: 0,
+            EM: 'Cookie set successfully',
+            DT: ''
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            EC: 1,
+            EM: 'Internal server error',
+            DT: ''
+        });
+    }
+});
+
+
 app.post('/register', async (req, res) => {
     try {
         if (!req.body.name || !req.body.password || !req.body.email) {
@@ -110,6 +143,7 @@ app.post('/login', async (req, res) => {
                         EM: 'ok',
                         DT: {
                             userData: existedUser,
+                            token: token
                         }
                     });
                 })
@@ -223,6 +257,90 @@ app.post('/upload', photoMiddleware.array('photos', 100), async (req, res) => {
     }
 })
 
+app.post('/places', async (req, res, next) => {
+    try {
+        if (!req.body.title || !req.body.address ||
+            !req.body.description || !req.body.perks || !req.body.extraInfo ||
+            !req.body.checkIn || !req.body.checkOut || !req.body.maxGuests) {
+            return res.status(200).json({
+                EC: -2,
+                EM: 'Please fill all required fields',
+                DT: {}
+            });
+        }
+
+        const { title, address, description, perks, extraInfo, checkIn, checkOut, maxGuests, photos } = req.body;
+        const { token } = req.cookies;
+
+        try {
+            const userData = await jwt.verify(token, jwt_secret);
+            let response = await Place.create({
+                owner: userData.id,
+                title, address, description, perks, extraInfo, checkIn, checkOut, maxGuests, photos
+            });
+
+            if (response) {
+                return res.status(200).json({
+                    EC: 0,
+                    EM: 'Place created successfully',
+                    DT: response
+                });
+            } else {
+                return res.status(500).json({
+                    EC: -3,
+                    EM: 'Cannot create place',
+                    DT: {}
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            return res.status(401).json({
+                EC: -1,
+                EM: 'Cannot verify token',
+                DT: {}
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({
+            EC: 1,
+            EM: 'Internal server error',
+            DT: {}
+        });
+    }
+});
+
+app.get('/places', async (req, res) => {
+    try {
+        const { token } = req.cookies;
+        const userData = await jwt.verify(token, jwt_secret);
+        const { id } = userData
+        const myPlaces = await Place.find({
+            owner: id
+        })
+        if (myPlaces) {
+            return res.status(200).json({
+                EC: 0,
+                EM: 'successfully get all accommodations of mine',
+                DT: myPlaces
+            })
+        }
+        else {
+            return res.status(200).json({
+                EC: -1,
+                EM: 'Cannot get places',
+                DT: {}
+            })
+        }
+    } catch (e) {
+        console.log(e)
+        return res.status(200).json({
+            EC: 1,
+            EM: 'Internal server error',
+            DT: []
+        })
+    }
+})
 
 app.listen(port, () => {
     console.log('ok listening on port', port)
